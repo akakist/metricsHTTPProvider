@@ -5,7 +5,7 @@
 #include <userver/server/handlers/http_handler_json_base.hpp>
 #include <userver/utils/daemon_run.hpp>
 #include <userver/utils/datetime.hpp>
-//#include <crypto/openssl.hpp>
+#include <crypto/openssl.hpp>
 #include <userver/components/run.hpp>
 //#include <utils/jemalloc.hpp>
 #include <userver/formats/json.hpp>
