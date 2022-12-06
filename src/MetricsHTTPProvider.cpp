@@ -5,9 +5,9 @@
 #include <userver/server/handlers/http_handler_json_base.hpp>
 #include <userver/utils/daemon_run.hpp>
 #include <userver/utils/datetime.hpp>
-#include <crypto/openssl.hpp>
+//#include <crypto/openssl.hpp>
 #include <userver/components/run.hpp>
-#include <utils/jemalloc.hpp>
+//#include <utils/jemalloc.hpp>
 #include <userver/formats/json.hpp>
 #include <userver/components/manager.hpp>
 #include <core/src/components/manager_config.hpp>
@@ -79,7 +79,7 @@ public:
         const components::ComponentList component_list = components::MinimalServerComponentList()
                                         .Append<ConfigDistributor>();
 
-        crypto::impl::Openssl::Init();
+//        crypto::impl::Openssl::Init();
 
         auto conf_replaced=std::regex_replace(config,std::regex("~port~"),std::to_string(_this->listen_port));
         conf_replaced=std::regex_replace(conf_replaced,std::regex("~uri~"),std::string(_this->uri));
