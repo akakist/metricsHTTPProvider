@@ -39,8 +39,8 @@ public:
     ~MetricsHTTPProvider();
 
 private:
-    MetricsHTTPProvider(const MetricsHTTPProvider&); // protect from usage
-    MetricsHTTPProvider& operator=(const MetricsHTTPProvider&); // protect from usage
+    MetricsHTTPProvider(const MetricsHTTPProvider&) = delete; // protect from usage
+    MetricsHTTPProvider& operator=(const MetricsHTTPProvider&) = delete; // protect from usage
 
 public:
   // собираем значения от приложения

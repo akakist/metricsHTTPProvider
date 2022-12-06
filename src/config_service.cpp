@@ -11,147 +11,10 @@
 #include <core/src/components/manager_config.hpp>
 #include <userver/utest/using_namespace_userver.hpp>
 #include <userver/logging/log.hpp>
+#include <iostream>
+#include <fstream>
 
-namespace samples {
-
-/// [Config service sample - component]
-struct ConfigDataWithTimestamp {
-  std::chrono::system_clock::time_point updated_at;
-  std::unordered_map<std::string, formats::json::Value> key_values;
-};
-
-class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
- public:
-  static constexpr std::string_view kName = "handler-config";
-
-  using KeyValues = std::unordered_map<std::string, formats::json::Value>;
-
-  // Component is valid after construction and is able to accept requests
-  ConfigDistributor(const components::ComponentConfig& config,
-                    const components::ComponentContext& context);
-
-  formats::json::Value HandleRequestJsonThrow(
-      const server::http::HttpRequest&, const formats::json::Value& json,
-      server::request::RequestContext&) const override;
-
-  void SetNewValues(KeyValues&& key_values) {
-    config_values_.Assign(ConfigDataWithTimestamp{
-        /*.updated_at=*/utils::datetime::Now(),
-        /*.key_values=*/std::move(key_values),
-    });
-  }
-
- private:
-  rcu::Variable<ConfigDataWithTimestamp> config_values_;
-};
-/// [Config service sample - component]
-
-ConfigDistributor::ConfigDistributor(
-    const components::ComponentConfig& config,
-    const components::ComponentContext& context)
-    : HttpHandlerJsonBase(config, context) {
-  constexpr std::string_view kDynamicConfig = R"~({
-    "USERVER_TASK_PROCESSOR_PROFILER_DEBUG": {},
-    "USERVER_LOG_REQUEST": true,
-    "USERVER_LOG_REQUEST_HEADERS": false,
-    "USERVER_CHECK_AUTH_IN_HANDLERS": false,
-    "USERVER_CANCEL_HANDLE_REQUEST_BY_DEADLINE": false,
-    "USERVER_RPS_CCONTROL_CUSTOM_STATUS": {},
-    "USERVER_HTTP_PROXY": "",
-    "USERVER_TASK_PROCESSOR_QOS": {
-      "default-service": {
-        "default-task-processor": {
-          "wait_queue_overload": {
-            "action": "ignore",
-            "length_limit": 5000,
-            "time_limit_us": 3000
-          }
-        }
-      }
-    },
-    "USERVER_CACHES": {},
-    "USERVER_LRU_CACHES": {},
-    "USERVER_DUMPS": {}
-  })~";
-
-  auto json = formats::json::FromString(kDynamicConfig);
-
-  KeyValues new_config;
-  for (auto [key, value] : Items(json)) {
-    new_config[std::move(key)] = value;
-  }
-
-  new_config["USERVER_LOG_REQUEST_HEADERS"] =
-      formats::json::ValueBuilder(true).ExtractValue();
-
-  SetNewValues(std::move(new_config));
-}
-
-/// [Config service sample - HandleRequestJsonThrow]
-formats::json::ValueBuilder MakeConfigs(
-    const rcu::ReadablePtr<ConfigDataWithTimestamp>& config_values_ptr,
-    const formats::json::Value& request);
-
-formats::json::Value ConfigDistributor::HandleRequestJsonThrow(
-    const server::http::HttpRequest&, const formats::json::Value& json,
-    server::request::RequestContext&) const {
-  formats::json::ValueBuilder result;
-
-  const auto config_values_ptr = config_values_.Read();
-  result["configs"] = MakeConfigs(config_values_ptr, json);
-
-  const auto updated_at = config_values_ptr->updated_at;
-  result["updated_at"] = utils::datetime::Timestring(updated_at);
-
-  return result.ExtractValue();
-}
-/// [Config service sample - HandleRequestJsonThrow]
-
-/// [Config service sample - MakeConfigs]
-formats::json::ValueBuilder MakeConfigs(
-    const rcu::ReadablePtr<ConfigDataWithTimestamp>& config_values_ptr,
-    const formats::json::Value& request) {
-  formats::json::ValueBuilder configs(formats::common::Type::kObject);
-
-  const auto updated_since = request["updated_since"].As<std::string>({});
-  if (!updated_since.empty() && utils::datetime::Stringtime(updated_since) >=
-                                    config_values_ptr->updated_at) {
-    // Return empty JSON if "updated_since" is sent and no changes since then.
-    return configs;
-  }
-
-  LOG_DEBUG() << "Sending dynamic config for service "
-              << request["service"].As<std::string>("<unknown>");
-
-  const auto& values = config_values_ptr->key_values;
-  if (request["ids"].IsMissing()) {
-    // Sending all the configs.
-    for (const auto& [key, value] : values) {
-      configs[key] = value;
-    }
-
-    return configs;
-  }
-
-  // Sending only the requested configs.
-  for (const auto& id : request["ids"]) {
-    const auto key = id.As<std::string>();
-
-    const auto it = values.find(key);
-    if (it != values.end()) {
-      configs[key] = it->second;
-    } else {
-      LOG_ERROR() << "Failed to find config with name '" << key << "'";
-    }
-  }
-
-  return configs;
-}
-/// [Config service sample - MakeConfigs]
-
-}  // namespace samples
-
-std::string config=R"(
+std::string config=R"x(
 components_manager:
     coro_pool:
         initial_size: 500             # Preallocate 500 coroutines at startup.
@@ -187,22 +50,87 @@ components_manager:
         dynamic-config:                      # Dynamic config storage options, do nothing
             fs-cache-path: ''
         dynamic-config-fallbacks:            # Load options from file and push them into the dynamic config storage.
-            fallback-path: dynamic_config_fallback.json
+            fallback-path: /tmp/dynamic_config_fallback.json
         auth-checker-settings:
         # /// [Config service sample - handler static config]
         # yaml
         handler-config:
             path: ~uri~
-            method: POST              # Only for HTTP POST requests. Other handlers may reuse the same URL but use different method.
+            method: GET              # Only for HTTP POST requests. Other handlers may reuse the same URL but use different method.
             task_processor: main-task-processor
         # /// [Config service sample - handler static config]
 
-)";
-//void DoRun1(const components::InMemoryConfig& config,
-//           const components::ComponentList& component_list,
-//           const std::string& init_log_path, logging::Format format
-//           ) {
-//}
+)x";
 
-/// [Config service sample - main]
-/// [Config service sample - main]
+std::string dynamic_config_fallback_json=
+R"x(
+{
+  "HTTP_CLIENT_CONNECTION_POOL_SIZE": 1000,
+  "HTTP_CLIENT_ENFORCE_TASK_DEADLINE": {
+    "cancel-request": false,
+    "update-timeout": false
+  },
+  "HTTP_CLIENT_CONNECT_THROTTLE": {
+    "max-size": 100,
+    "token-update-interval-ms": 0
+  },
+  "USERVER_CACHES": {},
+  "USERVER_CANCEL_HANDLE_REQUEST_BY_DEADLINE": false,
+  "USERVER_CHECK_AUTH_IN_HANDLERS": false,
+  "USERVER_DUMPS": {},
+  "USERVER_FILES_CONTENT_TYPE_MAP": {
+    ".css": "text/css",
+    ".gif": "image/gif",
+    ".htm": "text/html",
+    ".html": "text/html",
+    ".jpeg": "image/jpeg",
+    ".js": "application/javascript",
+    ".json": "application/json",
+    ".md": "text/markdown",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    "__default__": "text/plain"
+  },
+  "USERVER_NO_LOG_SPANS": {
+    "names": [],
+    "prefixes": []
+  },
+  "USERVER_RPS_CCONTROL_ENABLED": true,
+  "USERVER_RPS_CCONTROL": {
+    "down-level": 1,
+    "down-rate-percent": 2,
+    "min-limit": 10,
+    "no-limit-seconds": 1000,
+    "overload-off-seconds": 3,
+    "overload-on-seconds": 3,
+    "up-level": 2,
+    "up-rate-percent": 2
+  },
+
+  "USERVER_HTTP_PROXY": "",
+  "USERVER_LOG_REQUEST": true,
+  "USERVER_LOG_REQUEST_HEADERS": false,
+  "USERVER_LRU_CACHES": {},
+  "USERVER_RPS_CCONTROL_CUSTOM_STATUS": {},
+  "USERVER_TASK_PROCESSOR_PROFILER_DEBUG": {},
+  "USERVER_TASK_PROCESSOR_QOS": {
+    "default-service": {
+      "default-task-processor": {
+        "wait_queue_overload": {
+          "action": "ignore",
+          "length_limit": 5000,
+          "time_limit_us": 3000
+        }
+      }
+    }
+  }
+}
+)x";
+
+void copy_json_to_tmp()
+{
+    std::ofstream myfile;
+    myfile.open ("/tmp/dynamic_config_fallback.json");
+    myfile << dynamic_config_fallback_json;
+    myfile.close();
+}

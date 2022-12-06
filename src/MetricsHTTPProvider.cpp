@@ -15,23 +15,17 @@
 #include <userver/logging/log.hpp>
 #include <regex>
 
-struct ConfigDataWithTimestamp {
-  std::chrono::system_clock::time_point updated_at;
-  std::unordered_map<std::string, formats::json::Value> key_values;
-};
 struct Container
 {
     std::mutex mutex;
-    std::map<std::string_view, unsigned long> vals_ul;
-    std::map<std::string_view,std::string_view> vals_string;
+    std::map<std::string, unsigned long> vals_ul;
+    std::map<std::string,std::string> vals_string;
 
 };
 static Container container;
 class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
  public:
   static constexpr std::string_view kName = "handler-config";
-
-//  using KeyValues = std::unordered_map<std::string, formats::json::Value>;
 
   // Component is valid after construction and is able to accept requests
   ConfigDistributor(const components::ComponentConfig& config,
@@ -40,16 +34,6 @@ class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
   formats::json::Value HandleRequestJsonThrow(
       const server::http::HttpRequest&, const formats::json::Value& json,
       server::request::RequestContext&) const override;
-
-//  void SetNewValues(KeyValues&& key_values) {
-//    config_values_.Assign(ConfigDataWithTimestamp{
-//        /*.updated_at=*/utils::datetime::Now(),
-//        /*.key_values=*/std::move(key_values),
-//    });
-//  }
-
- private:
-  rcu::Variable<ConfigDataWithTimestamp> config_values_;
 };
 extern std::string config;
 
@@ -59,6 +43,7 @@ struct st_active
     st_active(bool*b):_b(b){*_b=true;}
     ~st_active(){*_b=false;}
 };
+void copy_json_to_tmp();
 class MetricsHTTPProviderImpl
 {
 public:
@@ -75,35 +60,28 @@ public:
     set_value(std::string_view key, std::string_view value)
     {
         std::lock_guard<std::mutex> g(container.mutex);
-        container.vals_string[key]=value;
+        container.vals_string[std::string(key)]=value;
     }
     void
     add_value(std::string_view key, unsigned long value)
     {
         std::lock_guard<std::mutex> g(container.mutex);
-        container.vals_ul[key]=value;
+        container.vals_ul[std::string(key)]=value;
     }
     static void* worker(MetricsHTTPProviderImpl* _this)
     {
 
         const components::ComponentList component_list = components::MinimalServerComponentList()
                                         .Append<ConfigDistributor>();
-      //  std::string init_log_path;
-      //  std::string init_log_format = "tskv";
-
-      //  DoRun1(components::InMemoryConfig(config),component_list,init_log_path,
-      //         logging::FormatFromString(init_log_format));
 
         crypto::impl::Openssl::Init();
 
-        auto conf2=std::regex_replace(config,std::regex("~port~"),std::to_string(_this->listen_port));
-        conf2=std::regex_replace(conf2,std::regex("~uri~"),std::string(_this->uri));
-//        config=conf2;
-        printf("config:\n%s\n",conf2.c_str());
-        auto conf=std::make_unique<components::ManagerConfig>(components::ManagerConfig::FromString(conf2,{},{}));
+        auto conf_replaced=std::regex_replace(config,std::regex("~port~"),std::to_string(_this->listen_port));
+        conf_replaced=std::regex_replace(conf_replaced,std::regex("~uri~"),std::string(_this->uri));
+        auto conf_prepared=std::make_unique<components::ManagerConfig>(components::ManagerConfig::FromString(conf_replaced,{},{}));
         std::optional<components::Manager> manager;
         try {
-          manager.emplace(std::move(conf), component_list);
+          manager.emplace(std::move(conf_prepared), component_list);
         } catch (const std::exception& ex) {
           LOG_ERROR() << "Loading failed: " << ex;
           throw;
@@ -123,6 +101,7 @@ public:
     void
     activate_object()
     {
+        copy_json_to_tmp();
         thread_=std::thread(worker,this);
     }
     void
@@ -154,96 +133,37 @@ MetricsHTTPProvider::~MetricsHTTPProvider()
     delete impl;
 }
 
-void
-MetricsHTTPProvider::set_value(std::string_view key, std::string_view value)
+void MetricsHTTPProvider::set_value(std::string_view key, std::string_view value)
 {
     impl->set_value(key,value);
 }
 
-void
-MetricsHTTPProvider::add_value(std::string_view key, unsigned long value)
+void MetricsHTTPProvider::add_value(std::string_view key, unsigned long value)
 {
     impl->add_value(key,value);
 }
-void
-MetricsHTTPProvider::activate_object() {
+void MetricsHTTPProvider::activate_object() {
     impl->activate_object();
 }
-void
-MetricsHTTPProvider::deactivate_object() {
+void MetricsHTTPProvider::deactivate_object() {
     impl->deactivate_object();
 }
 
-void
-MetricsHTTPProvider::wait_object()
+void MetricsHTTPProvider::wait_object()
 {
     impl->wait_object();
 }
-bool
-MetricsHTTPProvider::active()
+bool MetricsHTTPProvider::active()
 {
     return impl->active_;
 }
 
-ConfigDistributor::ConfigDistributor(const components::ComponentConfig& config,
-    const components::ComponentContext& context)
-    : HttpHandlerJsonBase(config, context) {
+ConfigDistributor::ConfigDistributor(const components::ComponentConfig& config, const components::ComponentContext& context)
+    : HttpHandlerJsonBase(config, context)
+{
 
-//  auto json = formats::json::FromString(kDynamicConfig);
-
-//  KeyValues new_config;
-//  for (auto [key, value] : Items(json)) {
-//    new_config[std::move(key)] = value;
-//  }
-
-//  new_config["USERVER_LOG_REQUEST_HEADERS"] =
-//      formats::json::ValueBuilder(true).ExtractValue();
-
-//  SetNewValues(std::move(new_config));
 }
-#ifdef KALL
-formats::json::ValueBuilder MakeConfigs(
-    const rcu::ReadablePtr<ConfigDataWithTimestamp>& config_values_ptr,
-    const formats::json::Value& request) {
-  formats::json::ValueBuilder configs(formats::common::Type::kObject);
-
-  const auto updated_since = request["updated_since"].As<std::string>({});
-  if (!updated_since.empty() && utils::datetime::Stringtime(updated_since) >=
-                                    config_values_ptr->updated_at) {
-    // Return empty JSON if "updated_since" is sent and no changes since then.
-    return configs;
-  }
-
-  LOG_DEBUG() << "Sending dynamic config for service "
-              << request["service"].As<std::string>("<unknown>");
-
-  const auto& values = config_values_ptr->key_values;
-  if (request["ids"].IsMissing()) {
-    // Sending all the configs.
-    for (const auto& [key, value] : values) {
-      configs[key] = value;
-    }
-
-    return configs;
-  }
-
-  // Sending only the requested configs.
-  for (const auto& id : request["ids"]) {
-    const auto key = id.As<std::string>();
-
-    const auto it = values.find(key);
-    if (it != values.end()) {
-      configs[key] = it->second;
-    } else {
-      LOG_ERROR() << "Failed to find config with name '" << key << "'";
-    }
-  }
-
-  return configs;
-}
-#endif
-formats::json::Value ConfigDistributor::HandleRequestJsonThrow(
-    const server::http::HttpRequest&, const formats::json::Value& json,
+formats::json::Value ConfigDistributor::HandleRequestJsonThrow( const server::http::HttpRequest&, const formats::json::Value& json,
     server::request::RequestContext&) const {
 
   formats::json::ValueBuilder j;
@@ -259,6 +179,5 @@ formats::json::Value ConfigDistributor::HandleRequestJsonThrow(
       }
 
   }
-
   return j.ExtractValue();
 }
