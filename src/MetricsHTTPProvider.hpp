@@ -90,7 +90,7 @@ public:
   int listen_port;
   std::string uri;
   std::thread worker;
-  std::mutex mx;
+//  std::mutex mx;
 
   bool stop=false;
 };
