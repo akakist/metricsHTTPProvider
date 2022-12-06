@@ -21,6 +21,7 @@ ${USERVER}/third_party/fmt/include
 ${USERVER}/third_party/cctz/include 
 ${USERVER}/third_party/moodycamel/include 
 /usr/local/include
+/usr/include/userver
                 )
 
 
