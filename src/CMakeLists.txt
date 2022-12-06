@@ -24,6 +24,8 @@ ${USERVER}/third_party/moodycamel/include
 /usr/include/userver
 /home/alexander_belyalov/userver/userver/core/src
 /home/alexander_belyalov/userver/userver
+/home/alexander_belyalov/userver/userver/shared/src
+
                 )
 
 
