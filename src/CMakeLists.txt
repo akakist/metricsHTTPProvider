@@ -22,6 +22,7 @@ ${USERVER}/third_party/cctz/include
 ${USERVER}/third_party/moodycamel/include 
 /usr/local/include
 /usr/include/userver
+/home/alexander_belyalov/userver/userver/core/src
                 )
 
 
