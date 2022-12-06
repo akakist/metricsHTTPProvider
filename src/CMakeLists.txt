@@ -35,7 +35,6 @@ target_link_libraries(mp.exe
         curl 
         lber
         ldap 
-        ssh2
         userver-uboost-coro 
         boost_filesystem 
         boost_program_options 
@@ -44,15 +43,14 @@ target_link_libraries(mp.exe
         crypto 
         ssl 
         z 
-        iconv 
         yaml-cpp 
         cctz 
-        userver-stacktrace 
         cryptopp 
         http_parser 
         ev 
         spdlog 
         fmt
+        userver-stacktrace
 
 z  pthread dl)
 
