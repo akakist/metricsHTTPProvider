@@ -24,7 +24,7 @@ public:
 
 }
 #elif defined(__linux__)
-{
+
 namespace Generics {
 class ActiveObject
 {
@@ -46,7 +46,7 @@ public:
 
 }
 
-}
+
 #else
 #error "! linux && ! macos":
 #endif
