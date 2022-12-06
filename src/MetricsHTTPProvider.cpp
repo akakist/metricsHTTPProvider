@@ -55,6 +55,11 @@ public:
     MetricsHTTPProviderImpl(unsigned int _listen_port, std::string_view _uri): listen_port(_listen_port),uri(_uri)
     {
     }
+    ~MetricsHTTPProviderImpl(){
+        if(active_)
+            LOG_ERROR() << "Try to destruct active object MetricsHTTPProviderImpl";
+
+    }
 
     void
     set_value(std::string_view key, std::string_view value)
