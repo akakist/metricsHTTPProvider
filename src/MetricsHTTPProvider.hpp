@@ -25,6 +25,26 @@ public:
 }
 #elif defined(__linux__)
 {
+namespace Generics {
+class ActiveObject
+{
+public:
+    virtual
+    void
+    activate_object()    =0;
+    virtual
+    void
+    deactivate_object() =0;
+    virtual
+    void
+    wait_object() =0;
+    virtual
+    bool
+    active() =0;
+    virtual ~ActiveObject(){}
+};
+
+}
 
 }
 #else
