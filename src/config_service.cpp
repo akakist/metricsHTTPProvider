@@ -198,26 +198,11 @@ components_manager:
         # /// [Config service sample - handler static config]
 
 )";
-void DoRun1(const components::InMemoryConfig& config,
-           const components::ComponentList& component_list,
-           const std::string& init_log_path, logging::Format format
-           ) {
-  crypto::impl::Openssl::Init();
-
-  auto conf=std::make_unique<components::ManagerConfig>(components::ManagerConfig::FromString(config.GetUnderlying(),{},{}));
-  std::optional<components::Manager> manager;
-  try {
-    manager.emplace(std::move(conf), component_list);
-  } catch (const std::exception& ex) {
-    LOG_ERROR() << "Loading failed: " << ex;
-    throw;
-  }
-
-
-  for (;;) {
-      sleep(1);
-  }
-}
+//void DoRun1(const components::InMemoryConfig& config,
+//           const components::ComponentList& component_list,
+//           const std::string& init_log_path, logging::Format format
+//           ) {
+//}
 
 /// [Config service sample - main]
 int main(int argc, char* argv[])
@@ -226,14 +211,6 @@ int main(int argc, char* argv[])
 
     auto l=userver::logging::DefaultLogger();
     userver::logging::SetDefaultLoggerLevel(userver::logging::Level::kNone);
-  const components::ComponentList component_list = components::MinimalServerComponentList()
-                                  .Append<samples::ConfigDistributor>();
-  std::string init_log_path;
-  std::string init_log_format = "tskv";
-
-  DoRun1(components::InMemoryConfig(config),component_list,init_log_path,
-         logging::FormatFromString(init_log_format));
-
 
 }
 /// [Config service sample - main]

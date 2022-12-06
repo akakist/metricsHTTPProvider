@@ -18,7 +18,14 @@ struct ConfigDataWithTimestamp {
   std::chrono::system_clock::time_point updated_at;
   std::unordered_map<std::string, formats::json::Value> key_values;
 };
+struct Container
+{
+    std::mutex mutex;
+    std::map<std::string_view, unsigned long> vals_ul;
+    std::map<std::string_view,std::string_view> vals_string;
 
+};
+static Container container;
 class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
  public:
   static constexpr std::string_view kName = "handler-config";
@@ -43,14 +50,22 @@ class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
  private:
   rcu::Variable<ConfigDataWithTimestamp> config_values_;
 };
+extern std::string config;
 
+struct st_active
+{
+    bool *_b;
+    st_active(bool*b):_b(b){*_b=true;}
+    ~st_active(){*_b=false;}
+};
 class MetricsHTTPProviderImpl
 {
+public:
     unsigned int listen_port;
     std::string uri;
-    std::thread _thread;
-    bool stopped=false;
-public:
+    std::thread thread_;
+    bool stopped_=false;
+    bool active_;
     MetricsHTTPProviderImpl(unsigned int _listen_port, std::string _uri): listen_port(_listen_port),uri(_uri)
     {
     }
@@ -58,15 +73,44 @@ public:
     void
     set_value(std::string_view key, std::string_view value)
     {
-
+        std::lock_guard<std::mutex> g(container.mutex);
+        container.vals_string[key]=value;
     }
     void
     add_value(std::string_view key, unsigned long value)
     {
-
+        std::lock_guard<std::mutex> g(container.mutex);
+        container.vals_ul[key]=value;
     }
     static void* worker(MetricsHTTPProviderImpl* _this)
     {
+
+        const components::ComponentList component_list = components::MinimalServerComponentList()
+                                        .Append<ConfigDistributor>();
+      //  std::string init_log_path;
+      //  std::string init_log_format = "tskv";
+
+      //  DoRun1(components::InMemoryConfig(config),component_list,init_log_path,
+      //         logging::FormatFromString(init_log_format));
+
+        crypto::impl::Openssl::Init();
+
+        auto conf=std::make_unique<components::ManagerConfig>(components::ManagerConfig::FromString(config,{},{}));
+        std::optional<components::Manager> manager;
+        try {
+          manager.emplace(std::move(conf), component_list);
+        } catch (const std::exception& ex) {
+          LOG_ERROR() << "Loading failed: " << ex;
+          throw;
+        }
+        st_active(&_this->active_);
+
+
+        for (;;) {
+            if(_this->stopped_)
+                return NULL;
+            sleep(1);
+        }
 
         return NULL;
 
@@ -74,12 +118,13 @@ public:
     void
     activate_object()
     {
-        _thread=std::thread(worker,this);
+        thread_=std::thread(worker,this);
     }
     void
     deactivate_object()
     {
-
+        stopped_=true;
+        thread_.join();
     }
     void
     wait_object()
@@ -89,7 +134,7 @@ public:
     bool
     active()
     {
-
+        return active_;
     }
 
 
@@ -132,17 +177,16 @@ MetricsHTTPProvider::wait_object()
 bool
 MetricsHTTPProvider::active()
 {
-    return impl->active();
+    return impl->active_;
 }
 
-ConfigDistributor::ConfigDistributor(
-    const components::ComponentConfig& config,
+ConfigDistributor::ConfigDistributor(const components::ComponentConfig& config,
     const components::ComponentContext& context)
     : HttpHandlerJsonBase(config, context) {
 
 //  auto json = formats::json::FromString(kDynamicConfig);
 
-  KeyValues new_config;
+//  KeyValues new_config;
 //  for (auto [key, value] : Items(json)) {
 //    new_config[std::move(key)] = value;
 //  }
@@ -150,7 +194,7 @@ ConfigDistributor::ConfigDistributor(
 //  new_config["USERVER_LOG_REQUEST_HEADERS"] =
 //      formats::json::ValueBuilder(true).ExtractValue();
 
-  SetNewValues(std::move(new_config));
+//  SetNewValues(std::move(new_config));
 }
 formats::json::ValueBuilder MakeConfigs(
     const rcu::ReadablePtr<ConfigDataWithTimestamp>& config_values_ptr,
@@ -195,13 +239,27 @@ formats::json::ValueBuilder MakeConfigs(
 formats::json::Value ConfigDistributor::HandleRequestJsonThrow(
     const server::http::HttpRequest&, const formats::json::Value& json,
     server::request::RequestContext&) const {
-  formats::json::ValueBuilder result;
+//  formats::json::ValueBuilder result;
 
-  const auto config_values_ptr = config_values_.Read();
-  result["configs"] = MakeConfigs(config_values_ptr, json);
+  formats::json::ValueBuilder j;
+  {
+      std::lock_guard<std::mutex> lock(container.mutex);
+      for(auto&[k,v]: container.vals_string)
+      {
+          j[std::string(k)]=v;
+      }
+      for(auto&[k,v]: container.vals_ul)
+      {
+          j[std::string(k)]=v;
+      }
 
-  const auto updated_at = config_values_ptr->updated_at;
-  result["updated_at"] = utils::datetime::Timestring(updated_at);
+  }
+//  j["11"]=11;
+//  const auto config_values_ptr = config_values_.Read();
+//  result["configs"] = MakeConfigs(config_values_ptr, json);
 
-  return result.ExtractValue();
+//  const auto updated_at = config_values_ptr->updated_at;
+//  result["updated_at"] = utils::datetime::Timestring(updated_at);
+
+  return j.ExtractValue();
 }
