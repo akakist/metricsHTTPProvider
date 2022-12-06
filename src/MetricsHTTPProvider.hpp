@@ -19,6 +19,7 @@ public:
     virtual
     bool
     active() =0;
+    virtual ~ActiveObject(){}
 };
 
 }
@@ -33,6 +34,7 @@ public:
 class MetricsHTTPProviderImpl;
 class MetricsHTTPProvider: public Generics::ActiveObject //(из gears)
 {
+public:
     MetricsHTTPProvider(unsigned int _listen_port, std::string _uri);
     ~MetricsHTTPProvider();
 
@@ -40,6 +42,7 @@ private:
     MetricsHTTPProvider(const MetricsHTTPProvider&); // protect from usage
     MetricsHTTPProvider& operator=(const MetricsHTTPProvider&); // protect from usage
 
+public:
   // собираем значения от приложения
   void
   set_value(std::string_view key, std::string_view value);

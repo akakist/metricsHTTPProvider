@@ -13,6 +13,7 @@
 #include <core/src/components/manager_config.hpp>
 #include <userver/utest/using_namespace_userver.hpp>
 #include <userver/logging/log.hpp>
+#include <regex>
 
 struct ConfigDataWithTimestamp {
   std::chrono::system_clock::time_point updated_at;
@@ -30,7 +31,7 @@ class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
  public:
   static constexpr std::string_view kName = "handler-config";
 
-  using KeyValues = std::unordered_map<std::string, formats::json::Value>;
+//  using KeyValues = std::unordered_map<std::string, formats::json::Value>;
 
   // Component is valid after construction and is able to accept requests
   ConfigDistributor(const components::ComponentConfig& config,
@@ -40,12 +41,12 @@ class ConfigDistributor final : public server::handlers::HttpHandlerJsonBase {
       const server::http::HttpRequest&, const formats::json::Value& json,
       server::request::RequestContext&) const override;
 
-  void SetNewValues(KeyValues&& key_values) {
-    config_values_.Assign(ConfigDataWithTimestamp{
-        /*.updated_at=*/utils::datetime::Now(),
-        /*.key_values=*/std::move(key_values),
-    });
-  }
+//  void SetNewValues(KeyValues&& key_values) {
+//    config_values_.Assign(ConfigDataWithTimestamp{
+//        /*.updated_at=*/utils::datetime::Now(),
+//        /*.key_values=*/std::move(key_values),
+//    });
+//  }
 
  private:
   rcu::Variable<ConfigDataWithTimestamp> config_values_;
@@ -62,11 +63,11 @@ class MetricsHTTPProviderImpl
 {
 public:
     unsigned int listen_port;
-    std::string uri;
+    std::string_view uri;
     std::thread thread_;
     bool stopped_=false;
     bool active_;
-    MetricsHTTPProviderImpl(unsigned int _listen_port, std::string _uri): listen_port(_listen_port),uri(_uri)
+    MetricsHTTPProviderImpl(unsigned int _listen_port, std::string_view _uri): listen_port(_listen_port),uri(_uri)
     {
     }
 
@@ -95,7 +96,11 @@ public:
 
         crypto::impl::Openssl::Init();
 
-        auto conf=std::make_unique<components::ManagerConfig>(components::ManagerConfig::FromString(config,{},{}));
+        auto conf2=std::regex_replace(config,std::regex("~port~"),std::to_string(_this->listen_port));
+        conf2=std::regex_replace(conf2,std::regex("~uri~"),std::string(_this->uri));
+//        config=conf2;
+        printf("config:\n%s\n",conf2.c_str());
+        auto conf=std::make_unique<components::ManagerConfig>(components::ManagerConfig::FromString(conf2,{},{}));
         std::optional<components::Manager> manager;
         try {
           manager.emplace(std::move(conf), component_list);
@@ -196,6 +201,7 @@ ConfigDistributor::ConfigDistributor(const components::ComponentConfig& config,
 
 //  SetNewValues(std::move(new_config));
 }
+#ifdef KALL
 formats::json::ValueBuilder MakeConfigs(
     const rcu::ReadablePtr<ConfigDataWithTimestamp>& config_values_ptr,
     const formats::json::Value& request) {
@@ -235,11 +241,10 @@ formats::json::ValueBuilder MakeConfigs(
 
   return configs;
 }
-
+#endif
 formats::json::Value ConfigDistributor::HandleRequestJsonThrow(
     const server::http::HttpRequest&, const formats::json::Value& json,
     server::request::RequestContext&) const {
-//  formats::json::ValueBuilder result;
 
   formats::json::ValueBuilder j;
   {
@@ -254,12 +259,6 @@ formats::json::Value ConfigDistributor::HandleRequestJsonThrow(
       }
 
   }
-//  j["11"]=11;
-//  const auto config_values_ptr = config_values_.Read();
-//  result["configs"] = MakeConfigs(config_values_ptr, json);
-
-//  const auto updated_at = config_values_ptr->updated_at;
-//  result["updated_at"] = utils::datetime::Timestring(updated_at);
 
   return j.ExtractValue();
 }

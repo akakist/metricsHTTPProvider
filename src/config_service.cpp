@@ -172,7 +172,7 @@ components_manager:
 
         server:
             listener:                 # configuring the main listening socket...
-                port: 8083            # ...to listen on this port and...
+                port: ~port~            # ...to listen on this port and...
                 task_processor: main-task-processor    # ...process incoming requests on this task processor.
         logging:
             fs-task-processor: fs-task-processor
@@ -192,7 +192,7 @@ components_manager:
         # /// [Config service sample - handler static config]
         # yaml
         handler-config:
-            path: /configs/values
+            path: ~uri~
             method: POST              # Only for HTTP POST requests. Other handlers may reuse the same URL but use different method.
             task_processor: main-task-processor
         # /// [Config service sample - handler static config]
@@ -205,12 +205,4 @@ components_manager:
 //}
 
 /// [Config service sample - main]
-int main(int argc, char* argv[])
-{
-
-
-    auto l=userver::logging::DefaultLogger();
-    userver::logging::SetDefaultLoggerLevel(userver::logging::Level::kNone);
-
-}
 /// [Config service sample - main]

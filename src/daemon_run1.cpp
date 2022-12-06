@@ -8,6 +8,7 @@
 #include <userver/logging/log.hpp>
 
 #include <boost/exception/diagnostic_information.hpp>
+#include "MetricsHTTPProvider.hpp"
 
 USERVER_NAMESPACE_BEGIN
 
@@ -85,4 +86,28 @@ int DaemonMain1(const int argc, const char* const argv[],
 
 }  // namespace utils
 
+
+
 USERVER_NAMESPACE_END
+
+
+int main(int argc, char* argv[])
+{
+
+
+    auto l=userver::logging::DefaultLogger();
+    userver::logging::SetDefaultLoggerLevel(userver::logging::Level::kNone);
+
+    MetricsHTTPProvider *m=new MetricsHTTPProvider(8081,"/sample/data");
+    m->activate_object();
+    for(int i=0;i<10;i++)
+    {
+        m->add_value("key-"+std::to_string(i),i);
+        m->add_value("key2-"+std::to_string(i),i+100);
+        sleep(1);
+    }
+    m->deactivate_object();
+    m->wait_object();
+    delete m;
+    return 0;
+}
