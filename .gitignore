@@ -72,3 +72,4 @@ Thumbs.db
 *.exe
 
 qt/build-mp-Desktop_Qt_5_15_2_clang_64bit-Debug/
+Build/
