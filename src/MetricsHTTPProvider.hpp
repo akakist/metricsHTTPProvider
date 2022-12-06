@@ -28,7 +28,7 @@ public:
 
 }
 #else
-#error "! linux && ! macos:
+#error "! linux && ! macos":
 #endif
 
 class MetricsHTTPProviderImpl;
