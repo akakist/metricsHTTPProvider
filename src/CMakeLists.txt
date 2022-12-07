@@ -25,8 +25,10 @@ ${USERVER}/third_party/moodycamel/include
 /home/alexander_belyalov/userver/userver/core/src
 /home/alexander_belyalov/userver/userver
 /home/alexander_belyalov/userver/userver/shared/src
+/home/alexander_belyalov/gears/src
 
                 )
+link_directories(/home/alexander_belyalov/gears/build/lib)
 
 if(APPLE)
 set(MACLINK "userver-stacktrace")
@@ -54,6 +56,7 @@ target_link_libraries(mp.exe
         spdlog 
         fmt
         ${MACLINK}
+        Generics
         
 
 z  pthread dl)

@@ -20,7 +20,7 @@ include_directories( /usr/local/include)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC ")
-link_directories( /usr/local/lib)
+link_directories( /usr/local/lib /home/alexander_belyalov/gears/build/lib )
 
 #set(PROJECT_NAME mp.exe CACHE STRING "Open C++ namespace to use")
 

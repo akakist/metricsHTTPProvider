@@ -25,6 +25,7 @@ public:
 }
 #elif defined(__linux__)
 
+/*
 namespace Generics {
 class ActiveObject
 {
@@ -45,14 +46,17 @@ public:
 };
 
 }
+*/
 
-
+#include <Generics/ActiveObject.hpp>
+#include <ReferenceCounting/AtomicImpl.hpp>
 #else
 #error "! linux && ! macos":
 #endif
 
 class MetricsHTTPProviderImpl;
-class MetricsHTTPProvider: public Generics::ActiveObject //(из gears)
+class MetricsHTTPProvider: public Generics::ActiveObject, public ReferenceCounting::AtomicImpl
+
 {
 public:
     MetricsHTTPProvider(unsigned int _listen_port, std::string _uri);
