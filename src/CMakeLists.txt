@@ -3,11 +3,11 @@
 
 
 
-add_executable(mp.exe 
+add_library(MetricsHTTPProvider  SHARED
+
 
 MetricsHTTPProvider.cpp
 config_service.cpp
-daemon_run1.cpp
 
 )
 set(USERVER /Users/sergejbelalov/banner/userver)
@@ -37,7 +37,8 @@ if(LINUX)
 set(LINUXLINK "Generics")
 endif()
 
-target_link_libraries(mp.exe  
+
+target_link_libraries(MetricsHTTPProvider
         userver-core 
         boost_locale
         curl 

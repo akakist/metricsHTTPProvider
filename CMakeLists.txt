@@ -16,7 +16,7 @@ endif()
 
 
 
-include_directories( /usr/local/include)
+include_directories( /usr/local/include src)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC ")
@@ -36,6 +36,7 @@ add_compile_definitions(
 
 
 ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(test)
 
     
 
