@@ -28,6 +28,9 @@ ${USERVER}/third_party/moodycamel/include
 
                 )
 
+if(APPLE)
+set(MACLINK "userver-stacktrace")
+endif()
 
 target_link_libraries(mp.exe  
         userver-core 
@@ -50,7 +53,8 @@ target_link_libraries(mp.exe
         ev 
         spdlog 
         fmt
-        userver-stacktrace
+        ${MACLINK}
+        
 
 z  pthread dl)
 
