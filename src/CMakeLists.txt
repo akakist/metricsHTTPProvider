@@ -33,6 +33,9 @@ link_directories(/home/alexander_belyalov/gears/build/lib)
 if(APPLE)
 set(MACLINK "userver-stacktrace")
 endif()
+if(LINUX)
+set(LINUXLINK "Generics")
+endif()
 
 target_link_libraries(mp.exe  
         userver-core 
@@ -56,7 +59,8 @@ target_link_libraries(mp.exe
         spdlog 
         fmt
         ${MACLINK}
-        Generics
+        ${LINUXLINK}
+        
         
 
 z  pthread dl)

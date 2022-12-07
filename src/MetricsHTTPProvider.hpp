@@ -55,8 +55,10 @@ public:
 #endif
 
 class MetricsHTTPProviderImpl;
-class MetricsHTTPProvider: public Generics::ActiveObject, public ReferenceCounting::AtomicImpl
-
+class MetricsHTTPProvider: public Generics::ActiveObject
+#ifdef __linux__
+, public ReferenceCounting::AtomicImpl
+#endif
 {
 public:
     MetricsHTTPProvider(unsigned int _listen_port, std::string _uri);
