@@ -36,7 +36,7 @@ add_compile_definitions(
 
 
 ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(test)
+ADD_SUBDIRECTORY(sample)
 
     
 
